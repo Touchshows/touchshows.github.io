@@ -6,6 +6,7 @@ const state = {
   urls: new Map(),
 };
 
+const CONTENT_VERSION = "20260530-1";
 const $ = (selector) => document.querySelector(selector);
 const lockScreen = $("#lock-screen");
 const app = $("#app");
@@ -28,7 +29,7 @@ const encoder = new TextEncoder();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const password = passwordInput.value.trim();
+  const password = passwordInput.value.normalize("NFKC").trim();
   if (!password) return;
   await unlock(password);
 });
@@ -49,20 +50,21 @@ async function unlock(password) {
   form.querySelector("button").disabled = true;
 
   try {
-    const config = await fetchJson("./content/index.json");
+    const config = await fetchJson(withVersion("./content/index.json"));
     const key = await deriveKey(password, config.salt, config.iterations);
-    const manifestBuffer = await fetchBuffer("./content/manifest.enc");
+    const manifestBuffer = await fetchBuffer(withVersion("./content/manifest.enc"));
     const manifestText = decoder.decode(await decryptBuffer(key, manifestBuffer));
 
     state.key = key;
     state.manifest = JSON.parse(manifestText);
+    setMessage("");
     lockScreen.hidden = true;
     app.hidden = false;
     document.title = state.manifest.site.title;
     renderApp();
   } catch (error) {
     console.error(error);
-    setMessage("密码不正确，或资料包加载失败。");
+    setMessage("密码不正确，或浏览器缓存了旧资料。请刷新页面后再试。");
   } finally {
     form.querySelector("button").disabled = false;
   }
@@ -211,7 +213,7 @@ async function getObjectUrl(item) {
     return state.urls.get(item.id);
   }
 
-  const encrypted = await fetchBuffer(`./content/files/${item.id}.enc`);
+  const encrypted = await fetchBuffer(withVersion(`./content/files/${item.id}.enc`));
   const plain = await decryptBuffer(state.key, encrypted);
   const blob = new Blob([plain], { type: item.mime });
   const url = URL.createObjectURL(blob);
@@ -249,15 +251,20 @@ async function decryptBuffer(key, encrypted) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Cannot load ${url}`);
   return response.json();
 }
 
 async function fetchBuffer(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Cannot load ${url}`);
   return response.arrayBuffer();
+}
+
+function withVersion(url) {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${CONTENT_VERSION}`;
 }
 
 function setMessage(text) {
