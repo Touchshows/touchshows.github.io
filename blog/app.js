@@ -1,4 +1,5 @@
-const CONTENT_VERSION = "20260530-4";
+const CONTENT_VERSION = "20260530-5";
+const PUBLIC_PASSWORD = "touchshows";
 const state = { key: null, manifest: null, category: "全部", query: "", urls: new Map() };
 const $ = (selector) => document.querySelector(selector);
 const decoder = new TextDecoder();
@@ -19,11 +20,12 @@ const viewerTitle = $("#viewer-title");
 const viewerCategory = $("#viewer-category");
 const viewerContent = $("#viewer-content");
 
-form.addEventListener("submit", async (event) => {
+form?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const password = passwordInput.value.normalize("NFKC").trim();
   if (password) await unlock(password);
 });
+window.addEventListener("DOMContentLoaded", () => unlock(PUBLIC_PASSWORD));
 search.addEventListener("input", () => {
   state.query = search.value.trim().toLowerCase();
   renderGallery();
@@ -33,8 +35,9 @@ viewer.addEventListener("close", () => viewerContent.replaceChildren());
 
 async function unlock(password) {
   const started = Date.now();
-  setMessage("正在解锁目录...");
-  form.querySelector("button").disabled = true;
+  setMessage("正在打开资料...");
+  const button = form?.querySelector("button");
+  if (button) button.disabled = true;
   try {
     const config = await fetchJson(withVersion("./content/index.json"));
     state.key = await deriveKey(password, config.salt, config.iterations);
@@ -48,9 +51,9 @@ async function unlock(password) {
     document.documentElement.dataset.unlockMs = String(Date.now() - started);
   } catch (error) {
     console.error(error);
-    setMessage("密码不正确，或资料包加载失败。请刷新页面后再试。");
+    setMessage("资料加载失败，请刷新页面后再试。");
   } finally {
-    form.querySelector("button").disabled = false;
+    if (button) button.disabled = false;
   }
 }
 
@@ -61,19 +64,16 @@ function renderApp() {
   renderOverview();
   renderGallery();
 }
-
 function renderStats() {
   const totals = state.manifest.totals;
   stats.replaceChildren(stat("材料", totals.items), stat("获奖", totals.awards), stat("项目支撑", totals.support));
 }
-
 function stat(label, value) {
   const el = document.createElement("div");
   el.className = "stat";
   el.innerHTML = `<strong>${value}</strong><span>${label}</span>`;
   return el;
 }
-
 function renderFilters() {
   const names = ["全部", ...state.manifest.categories.map((category) => category.name)];
   filters.replaceChildren(...names.map((name) => {
@@ -89,7 +89,6 @@ function renderFilters() {
     return button;
   }));
 }
-
 function renderResume() {
   document.querySelector(".resume-summary")?.remove();
   const section = document.createElement("section");
@@ -98,7 +97,6 @@ function renderResume() {
   section.innerHTML = `<div><p class="eyebrow">Resume summary</p><h2 style="margin:0;font-size:24px">简历获奖统计</h2></div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">${state.manifest.resume.highlights.map((item) => `<div style="border-left:3px solid var(--accent-2);padding-left:12px"><strong style="display:block;font-size:24px">${item.value}</strong><span style="color:var(--muted);font-size:13px">${escapeHtml(item.label)}</span></div>`).join("")}</div>`;
   document.querySelector(".topbar").after(section);
 }
-
 function renderOverview() {
   overview.replaceChildren(resumeCard("奖项等级", state.manifest.resume.awardLevels), resumeCard("竞赛层级", state.manifest.resume.scopes), ...state.manifest.categories.map((category) => {
     const card = document.createElement("article");
@@ -107,7 +105,6 @@ function renderOverview() {
     return card;
   }));
 }
-
 function resumeCard(title, rows) {
   const card = document.createElement("article");
   card.className = "category-card";
@@ -115,7 +112,6 @@ function resumeCard(title, rows) {
   card.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${details}</span>`;
   return card;
 }
-
 function renderGallery() {
   const items = state.manifest.items.filter((item) => {
     const matchesCategory = state.category === "全部" || item.category === state.category;
@@ -132,14 +128,11 @@ function renderGallery() {
   }
   gallery.append(...items.map(renderItem));
 }
-
 function renderItem(item) {
   const fragment = template.content.cloneNode(true);
-  const card = fragment.querySelector(".item-card");
   const preview = fragment.querySelector(".preview-button");
-  const title = fragment.querySelector("h2");
   fragment.querySelector(".item-meta").textContent = [item.category, item.subcategory].filter(Boolean).join(" / ");
-  title.textContent = item.title;
+  fragment.querySelector("h2").textContent = item.title;
   preview.ariaLabel = `查看 ${item.title}`;
   const tile = document.createElement("div");
   tile.className = "pdf-tile";
@@ -147,9 +140,8 @@ function renderItem(item) {
   preview.append(tile);
   preview.addEventListener("click", () => openViewer(item));
   fragment.querySelector(".open-button").addEventListener("click", () => openViewer(item));
-  return card;
+  return fragment;
 }
-
 async function openViewer(item) {
   viewerTitle.textContent = item.title;
   viewerCategory.textContent = [item.category, item.subcategory].filter(Boolean).join(" / ");
@@ -168,7 +160,6 @@ async function openViewer(item) {
   }
   viewer.showModal();
 }
-
 async function getObjectUrl(item) {
   if (state.urls.has(item.id)) return state.urls.get(item.id);
   const encrypted = await fetchBuffer(withVersion(`./content/files/${item.id}.enc`));
@@ -177,12 +168,10 @@ async function getObjectUrl(item) {
   state.urls.set(item.id, url);
   return url;
 }
-
 async function deriveKey(password, salt, iterations) {
   const material = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey({ name: "PBKDF2", salt: base64ToBuffer(salt), iterations, hash: "SHA-256" }, material, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
 }
-
 async function decryptBuffer(key, encrypted) {
   return crypto.subtle.decrypt({ name: "AES-GCM", iv: encrypted.slice(0, 12) }, key, encrypted.slice(12));
 }
