@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>TouchShows Blog</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section id="lock-screen" class="lock-screen">
+        <div class="lock-panel">
+          <p class="eyebrow">Private archive</p>
+          <h1>TouchShows Blog</h1>
+          <p class="intro">个人荣誉、竞赛成果与项目支撑材料整理展示。</p>
+          <form id="unlock-form" class="unlock-form">
+            <label for="password">访问密码</label>
+            <div class="password-row">
+              <input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required />
+              <button type="submit">进入</button>
+            </div>
+            <p id="unlock-message" class="unlock-message" role="status"></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="app" class="app" hidden>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">TouchShows Blog</p>
+            <h1>大学荣誉与项目档案</h1>
+          </div>
+          <div class="stats" id="stats"></div>
+        </header>
+
+        <section class="controls" aria-label="筛选材料">
+          <div class="search-box">
+            <label for="search">搜索</label>
+            <input id="search" type="search" placeholder="输入奖项、项目或材料名称" />
+          </div>
+          <div class="filter-row" id="filters"></div>
+        </section>
+
+        <section class="overview" id="overview"></section>
+        <section class="gallery" id="gallery" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <template id="item-template">
+      <article class="item-card">
+        <button class="preview-button" type="button"></button>
+        <div class="item-body">
+          <p class="item-meta"></p>
+          <h2></h2>
+          <div class="item-actions">
+            <button class="open-button" type="button">查看</button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <dialog id="viewer" class="viewer">
+      <div class="viewer-bar">
+        <div>
+          <p id="viewer-category"></p>
+          <h2 id="viewer-title"></h2>
+        </div>
+        <button id="viewer-close" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="viewer-content" class="viewer-content"></div>
+    </dialog>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
